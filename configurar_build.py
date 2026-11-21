@@ -37,107 +37,82 @@ def forzar_kotlin_version():
     for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
-            es_kts = str(p).endswith('.kts')
-            lineas = p.read_text(encoding='utf-8').splitlines()
-            out = []
-            for l in lineas:
-                if 'id("org.jetbrains.kotlin.android")' in l or 'id "org.jetbrains.kotlin.android"' in l:
-                    continue
-                if 'plugins {' in l:
-                    out.append(l)
-                    if es_kts:
-                        out.append(f'    id("org.jetbrains.kotlin.android") version "{version_segura}" apply false')
-                    else:
-                        out.append(f'    id "org.jetbrains.kotlin.android" version "{version_segura}" apply false')
-                else:
-                    out.append(l)
-            p.write_text('\n'.join(out), encoding='utf-8')
+            content = p.read_text(encoding='utf-8')
+            content = re.sub(r'^\s*id\s*\(\s*["\']org\.jetbrains\.kotlin\.android["\']\s*\).*$', '', content, flags=re.MULTILINE)
+            content = re.sub(r'^\s*id\s*["\']org\.jetbrains\.kotlin\.android["\'].*$', '', content, flags=re.MULTILINE)
+            
+            if f.endswith('.kts'):
+                content = content.replace('plugins {', f'plugins {{\n    id("org.jetbrains.kotlin.android") version "{version_segura}" apply false', 1)
+            else:
+                content = content.replace('plugins {', f'plugins {{\n    id "org.jetbrains.kotlin.android" version "{version_segura}" apply false', 1)
+            p.write_text(content, encoding='utf-8')
 
     for f in ['android/build.gradle', 'android/build.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
-            es_kts = str(p).endswith('.kts')
-            lineas = p.read_text(encoding='utf-8').splitlines()
-            out = []
-            for l in lineas:
-                if 'ext.kotlin_version' in l or 'extra["kotlin_version"]' in l:
-                    continue
-                out.append(l)
-                if 'buildscript {' in l:
-                    if es_kts:
-                        out.append(f'    extra["kotlin_version"] = "{version_segura}"')
-                    else:
-                        out.append(f"    ext.kotlin_version = '{version_segura}'")
+            es_kts = f.endswith('.kts')
+            content = p.read_text(encoding='utf-8')
             
-            txt_final = '\n'.join(out)
+            content = re.sub(r'^\s*ext\.kotlin_version\s*=.*$', '', content, flags=re.MULTILINE)
+            content = re.sub(r'^\s*extra\["kotlin_version"\]\s*=.*$', '', content, flags=re.MULTILINE)
+            content = re.sub(r'allprojects\s*\{[\s\S]*?tasks\.withType.*?\}\s*\}', '', content)
             
-            # Aplicar la inyección respetando la sintaxis del archivo
-            if 'allprojects {' in txt_final and '-Xskip-metadata-version-check' not in txt_final:
-                if es_kts:
-                    # Sintaxis estricta para Kotlin DSL (.kts)
-                    bloque_kts = '''allprojects {
+            # Bloque de Alineacion Global Absoluta a Java 17
+            if es_kts:
+                content = content.replace('buildscript {', f'buildscript {{\n    extra["kotlin_version"] = "{version_segura}"', 1)
+                content += '''
+allprojects {
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+    }
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             freeCompilerArgs.add("-Xskip-metadata-version-check")
         }
-    }'''
-                    txt_final = txt_final.replace('allprojects {', bloque_kts, 1)
-                else:
-                    # Sintaxis estricta para Groovy (.gradle)
-                    bloque_groovy = '''allprojects {
+    }
+}
+'''
+            else:
+                content = content.replace('buildscript {', f'buildscript {{\n    ext.kotlin_version = "{version_segura}"', 1)
+                content += '''
+allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
-            jvmTarget = "1.8"
+            jvmTarget = "17"
             freeCompilerArgs += ["-Xskip-metadata-version-check"]
         }
-    }'''
-                    txt_final = txt_final.replace('allprojects {', bloque_groovy, 1)
-                    
-            p.write_text(txt_final, encoding='utf-8')
+    }
+}
+'''
+            p.write_text(content, encoding='utf-8')
 
 def arreglar_repositorios_gradle():
-    for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
-        p = pathlib.Path(f)
-        if p.exists():
-            lineas = p.read_text(encoding='utf-8').splitlines()
-            out = []
-            in_plugin_mgmt = False
-            in_dep_mgmt = False
-            
-            for l in lineas:
-                l_stripped = l.strip()
-                if l_stripped in ['google()', 'mavenCentral()', 'gradlePluginPortal()']:
-                    continue
-                    
-                if 'pluginManagement {' in l:
-                    in_plugin_mgmt = True
-                if 'dependencyResolutionManagement {' in l:
-                    in_dep_mgmt = True
-                    
-                out.append(l)
-                
-                if l_stripped == 'repositories {' and in_plugin_mgmt:
-                    out.extend(['        google()', '        mavenCentral()', '        gradlePluginPortal()'])
-                    in_plugin_mgmt = False
-                elif l_stripped == 'repositories {' and in_dep_mgmt:
-                    out.extend(['        google()', '        mavenCentral()'])
-                    in_dep_mgmt = False
-                    
-            p.write_text('\n'.join(out), encoding='utf-8')
-
-    for f in ['android/build.gradle', 'android/build.gradle.kts', 'android/app/build.gradle', 'android/app/build.gradle.kts']:
+    archivos_gradle = [
+        'android/settings.gradle', 'android/settings.gradle.kts', 
+        'android/build.gradle', 'android/build.gradle.kts'
+    ]
+    
+    for f in archivos_gradle:
         p = pathlib.Path(f)
         if p.exists():
             lineas = p.read_text(encoding='utf-8').splitlines()
             out = []
             for l in lineas:
-                l_stripped = l.strip()
-                if l_stripped in ['google()', 'mavenCentral()']:
+                s = l.strip()
+                if s in ['google()', 'mavenCentral()', 'gradlePluginPortal()']:
                     continue
                 out.append(l)
-                if l_stripped == 'repositories {':
-                    out.extend(['        google()', '        mavenCentral()'])
+                if s == 'repositories {':
+                    out.append('        google()')
+                    out.append('        mavenCentral()')
+                    if 'settings' in f:
+                        out.append('        gradlePluginPortal()')
             p.write_text('\n'.join(out), encoding='utf-8')
             
     forzar_kotlin_version()
@@ -152,7 +127,37 @@ def asegurar_gradle_properties():
             t += '\nandroid.enableJetifier=true'
         if 'kotlin.stdlib.default.dependency' not in t:
             t += '\nkotlin.stdlib.default.dependency=true'
+        if 'kotlin.jvm.target.validation.mode' not in t:
+            t += '\nkotlin.jvm.target.validation.mode=warning'
         props.write_text(t, encoding='utf-8')
+
+def sanear_app_build_gradle():
+    for f in ['android/app/build.gradle', 'android/app/build.gradle.kts']:
+        p = pathlib.Path(f)
+        if p.exists():
+            es_kts = f.endswith('.kts')
+            txt = p.read_text(encoding='utf-8')
+            
+            txt = re.sub(r'^\s*ndkVersion\s*.*?$', '', txt, flags=re.MULTILINE)
+            
+            if es_kts:
+                txt = re.sub(r'minSdk\s*=\s*(flutter\.minSdkVersion|\d+)', r'minSdk = 24', txt)
+                txt = re.sub(r'compileSdk\s*=\s*(flutter\.compileSdkVersion|\d+)', r'compileSdk = 36', txt)
+                txt = re.sub(r'targetSdk\s*=\s*(flutter\.targetSdkVersion|\d+)', r'targetSdk = 36', txt)
+                txt = txt.replace('JavaVersion.VERSION_1_8', 'JavaVersion.VERSION_17')
+                txt = txt.replace('JavaVersion.VERSION_11', 'JavaVersion.VERSION_17')
+                if 'ndkVersion' not in txt:
+                    txt = txt.replace('compileSdk = 36', 'compileSdk = 36\n        ndkVersion = "27.0.12077973"')
+            else:
+                txt = re.sub(r'minSdkVersion\s+(flutter\.minSdkVersion|\d+)', r'minSdkVersion 24', txt)
+                txt = re.sub(r'compileSdkVersion\s+(flutter\.compileSdkVersion|\d+)', r'compileSdkVersion 36', txt)
+                txt = re.sub(r'targetSdkVersion\s+(flutter\.targetSdkVersion|\d+)', r'targetSdkVersion 36', txt)
+                txt = txt.replace('JavaVersion.VERSION_1_8', 'JavaVersion.VERSION_17')
+                txt = txt.replace('JavaVersion.VERSION_11', 'JavaVersion.VERSION_17')
+                if 'ndkVersion' not in txt:
+                    txt = txt.replace('compileSdkVersion 36', 'compileSdkVersion 36\n        ndkVersion "27.0.12077973"')
+            
+            p.write_text(txt, encoding='utf-8')
 
 def inyectar_motor_nativo_en_main_activity():
     main_dir = pathlib.Path('android/app/src/main')
@@ -391,24 +396,8 @@ def configurar_android():
             
     arreglar_repositorios_gradle()
     asegurar_gradle_properties()
+    sanear_app_build_gradle()
     inyectar_motor_nativo_en_main_activity()
-
-    for ruta_g in ['android/app/build.gradle', 'android/app/build.gradle.kts', 'android/build.gradle', 'android/build.gradle.kts']:
-        gp = pathlib.Path(ruta_g)
-        if gp.exists():
-            gtxt = gp.read_text(encoding='utf-8')
-            
-            gtxt = re.sub(r'^\s*ndkVersion\s*.*?$', '', gtxt, flags=re.MULTILINE)
-            
-            gtxt = re.sub(r'minSdkVersion\s+(flutter\.minSdkVersion|\d+)', r'minSdkVersion 24', gtxt)
-            gtxt = re.sub(r'minSdk\s*=\s*(flutter\.minSdkVersion|\d+)', r'minSdk = 24', gtxt)
-            gtxt = re.sub(r'compileSdkVersion\s+(flutter\.compileSdkVersion|\d+)', r'compileSdkVersion 36', gtxt)
-            gtxt = re.sub(r'compileSdk\s*=\s*(flutter\.compileSdkVersion|\d+)', r'compileSdk = 36', gtxt)
-            
-            gtxt = re.sub(r'(compileSdkVersion\s+36)', r'\1\n        ndkVersion "27.0.12077973"', gtxt)
-            gtxt = re.sub(r'(compileSdk\s*=\s*36)', r'\1\n        ndkVersion = "27.0.12077973"', gtxt)
-
-            gp.write_text(gtxt, encoding='utf-8')
 
 def resolver_pubspec():
     pub_path = pathlib.Path('pubspec.yaml')
