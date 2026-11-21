@@ -8,7 +8,7 @@ import subprocess
 LT = chr(60)
 GT = chr(62)
 
-PAQUETES_PROTEGIDOS_48 = {
+PAQUETES_PROTEGIDOS = {
     'flutter_riverpod', 'google_fonts', 'lucide_icons_flutter', 'ionicons',
     'dotted_border', 'shimmer', 'flutter_animate', 'confetti', 'lottie',
     'drag_and_drop_lists', 'infinite_scroll_pagination',
@@ -20,7 +20,8 @@ PAQUETES_PROTEGIDOS_48 = {
     'archive', 'uuid', 'faker', 'pdf', 'flutter_markdown', 'flutter_highlight',
     'highlight', 'math_expressions', 'equations', 'units_converter',
     'expressions', 'latlong2', 'timezone',
-    'webview_flutter', 'video_player', 'mobile_scanner', 'speech_to_text'
+    'webview_flutter', 'video_player', 'mobile_scanner', 'speech_to_text',
+    'camera', 'image_picker', 'share_plus', 'url_launcher', 'path_provider'
 }
 
 def es_png_rgba_valido(data: bytes) -> bool:
@@ -31,66 +32,101 @@ def es_png_rgba_valido(data: bytes) -> bool:
     return False
 
 def forzar_kotlin_version():
-    # settings.gradle y settings.gradle.kts (Flutter 3.19+)
+    version_segura = "1.9.24"
+    
     for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
             es_kts = str(p).endswith('.kts')
             lineas = p.read_text(encoding='utf-8').splitlines()
-            nuevas_lineas = []
+            out = []
             for l in lineas:
-                if 'org.jetbrains.kotlin.android' in l and 'version' in l:
-                    # Inyección quirúrgica respetando la sintaxis del lenguaje
+                # Omitir cualquier declaración previa de kotlin para evitar choques
+                if 'id("org.jetbrains.kotlin.android")' in l or 'id "org.jetbrains.kotlin.android"' in l:
+                    continue
+                if 'plugins {' in l:
+                    out.append(l)
                     if es_kts:
-                        if 'apply false' in l:
-                            nuevas_lineas.append('    id("org.jetbrains.kotlin.android") version "2.1.0" apply false')
-                        else:
-                            nuevas_lineas.append('    id("org.jetbrains.kotlin.android") version "2.1.0"')
+                        out.append(f'    id("org.jetbrains.kotlin.android") version "{version_segura}" apply false')
                     else:
-                        if 'apply false' in l:
-                            nuevas_lineas.append('    id "org.jetbrains.kotlin.android" version "2.1.0" apply false')
-                        else:
-                            nuevas_lineas.append('    id "org.jetbrains.kotlin.android" version "2.1.0"')
+                        out.append(f'    id "org.jetbrains.kotlin.android" version "{version_segura}" apply false')
                 else:
-                    nuevas_lineas.append(l)
-            p.write_text('\n'.join(nuevas_lineas), encoding='utf-8')
+                    out.append(l)
+            p.write_text('\n'.join(out), encoding='utf-8')
 
-    # build.gradle y build.gradle.kts (Flutter Antiguo)
     for f in ['android/build.gradle', 'android/build.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
             es_kts = str(p).endswith('.kts')
             lineas = p.read_text(encoding='utf-8').splitlines()
-            nuevas_lineas = []
-            injected = False
+            out = []
             for l in lineas:
                 if 'ext.kotlin_version' in l or 'extra["kotlin_version"]' in l:
+                    continue
+                out.append(l)
+                if 'buildscript {' in l:
                     if es_kts:
-                        nuevas_lineas.append('    extra["kotlin_version"] = "2.1.0"')
+                        out.append(f'    extra["kotlin_version"] = "{version_segura}"')
                     else:
-                        nuevas_lineas.append("    ext.kotlin_version = '2.1.0'")
-                    injected = True
-                elif 'buildscript {' in l and not injected:
-                    nuevas_lineas.append(l)
-                    if es_kts:
-                        nuevas_lineas.append('    extra["kotlin_version"] = "2.1.0"')
-                    else:
-                        nuevas_lineas.append("    ext.kotlin_version = '2.1.0'")
-                    injected = True
-                else:
-                    nuevas_lineas.append(l)
-            p.write_text('\n'.join(nuevas_lineas), encoding='utf-8')
+                        out.append(f"    ext.kotlin_version = '{version_segura}'")
+            p.write_text('\n'.join(out), encoding='utf-8')
 
 def arreglar_repositorios_gradle():
-    for f in ['android/settings.gradle', 'android/settings.gradle.kts', 'android/build.gradle', 'android/build.gradle.kts']:
+    # Inyección línea por línea hiper-segura
+    for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
-            t = p.read_text(encoding='utf-8')
-            if 'mavenCentral()' not in t:
-                t = re.sub(r'(google\(\))', r'\1\n        mavenCentral()', t)
-            p.write_text(t, encoding='utf-8')
+            lineas = p.read_text(encoding='utf-8').splitlines()
+            out = []
+            in_plugin_mgmt = False
+            in_dep_mgmt = False
+            
+            for l in lineas:
+                l_stripped = l.strip()
+                if l_stripped in ['google()', 'mavenCentral()', 'gradlePluginPortal()']:
+                    continue
+                    
+                if 'pluginManagement {' in l:
+                    in_plugin_mgmt = True
+                if 'dependencyResolutionManagement {' in l:
+                    in_dep_mgmt = True
+                    
+                out.append(l)
+                
+                if l_stripped == 'repositories {' and in_plugin_mgmt:
+                    out.extend(['        google()', '        mavenCentral()', '        gradlePluginPortal()'])
+                    in_plugin_mgmt = False
+                elif l_stripped == 'repositories {' and in_dep_mgmt:
+                    out.extend(['        google()', '        mavenCentral()'])
+                    in_dep_mgmt = False
+                    
+            p.write_text('\n'.join(out), encoding='utf-8')
+
+    for f in ['android/build.gradle', 'android/build.gradle.kts', 'android/app/build.gradle', 'android/app/build.gradle.kts']:
+        p = pathlib.Path(f)
+        if p.exists():
+            lineas = p.read_text(encoding='utf-8').splitlines()
+            out = []
+            for l in lineas:
+                l_stripped = l.strip()
+                if l_stripped in ['google()', 'mavenCentral()']:
+                    continue
+                out.append(l)
+                if l_stripped == 'repositories {':
+                    out.extend(['        google()', '        mavenCentral()'])
+            p.write_text('\n'.join(out), encoding='utf-8')
             
     forzar_kotlin_version()
+
+def asegurar_gradle_properties():
+    props = pathlib.Path('android/gradle.properties')
+    if props.exists():
+        t = props.read_text(encoding='utf-8')
+        if 'android.useAndroidX' not in t:
+            t += '\nandroid.useAndroidX=true'
+        if 'android.enableJetifier' not in t:
+            t += '\nandroid.enableJetifier=true'
+        props.write_text(t, encoding='utf-8')
 
 def inyectar_motor_nativo_en_main_activity():
     main_dir = pathlib.Path('android/app/src/main')
@@ -313,6 +349,10 @@ def configurar_android():
             'android.permission.ACTIVITY_RECOGNITION',
             'android.permission.BODY_SENSORS',
             'android.permission.USE_BIOMETRIC',
+            'android.permission.READ_EXTERNAL_STORAGE',
+            'android.permission.WRITE_EXTERNAL_STORAGE',
+            'android.permission.READ_MEDIA_IMAGES',
+            'android.permission.REQUEST_INSTALL_PACKAGES'
         ]
         lineas_xml = ''
         for p in permisos:
@@ -324,6 +364,7 @@ def configurar_android():
             manifest.write_text(txt, encoding='utf-8')
             
     arreglar_repositorios_gradle()
+    asegurar_gradle_properties()
     inyectar_motor_nativo_en_main_activity()
 
     for ruta_g in ['android/app/build.gradle', 'android/app/build.gradle.kts', 'android/build.gradle', 'android/build.gradle.kts']:
@@ -359,7 +400,7 @@ def resolver_pubspec():
             for pkg in candidatos:
                 if pkg in ('flutter', 'flutter_test', 'super_apk_sdui_universal'):
                     continue
-                if pkg not in PAQUETES_PROTEGIDOS_48:
+                if pkg not in PAQUETES_PROTEGIDOS:
                     nuevo_ptxt = re.sub(rf'^\s*{pkg}:\s*[^\n]+$', f'  # {pkg}: auto-omitido', ptxt, flags=re.M)
                 else:
                     nuevo_ptxt = re.sub(rf'^(\s*{pkg}:)\s*\^?[0-9][^\n]*$', r'\1 any', ptxt, flags=re.M)

@@ -25,7 +25,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Inicializar Estructura Android y Limpiar Cache
+      - name: 4. Inicializar Estructura Android y Limpiar Cache Absoluto
         run: |
           if [ ! -d "android" ]; then
             flutter create --no-pub . --project-name super_apk_sdui_universal --platforms=android
@@ -42,6 +42,6 @@ jobs:
       - name: 6. Publicar Super-APK Descargable
         uses: actions/upload-artifact@v4
         with:
-          name: Super-APK-APPSANTO-v5
+          name: Super-APK-APPSANTO-v5-Gold
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
