@@ -32,7 +32,7 @@ def es_png_rgba_valido(data: bytes) -> bool:
     return False
 
 def forzar_kotlin_version():
-    version_segura = "1.9.24"
+    version_segura = "2.1.0"
     
     for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
@@ -41,7 +41,6 @@ def forzar_kotlin_version():
             lineas = p.read_text(encoding='utf-8').splitlines()
             out = []
             for l in lineas:
-                # Omitir cualquier declaración previa de kotlin para evitar choques
                 if 'id("org.jetbrains.kotlin.android")' in l or 'id "org.jetbrains.kotlin.android"' in l:
                     continue
                 if 'plugins {' in l:
@@ -69,10 +68,20 @@ def forzar_kotlin_version():
                         out.append(f'    extra["kotlin_version"] = "{version_segura}"')
                     else:
                         out.append(f"    ext.kotlin_version = '{version_segura}'")
-            p.write_text('\n'.join(out), encoding='utf-8')
+            
+            # Inyectar la excepcion de Metadata Version Check para Kotlin 2.1.0 vs 1.9.0
+            txt_final = '\n'.join(out)
+            if 'allprojects {' in txt_final and '-Xskip-metadata-version-check' not in txt_final:
+                txt_final = txt_final.replace('allprojects {', '''allprojects {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = "1.8"
+            freeCompilerArgs += ["-Xskip-metadata-version-check"]
+        }
+    }''', 1)
+            p.write_text(txt_final, encoding='utf-8')
 
 def arreglar_repositorios_gradle():
-    # Inyección línea por línea hiper-segura
     for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
@@ -126,6 +135,8 @@ def asegurar_gradle_properties():
             t += '\nandroid.useAndroidX=true'
         if 'android.enableJetifier' not in t:
             t += '\nandroid.enableJetifier=true'
+        if 'kotlin.stdlib.default.dependency' not in t:
+            t += '\nkotlin.stdlib.default.dependency=true'
         props.write_text(t, encoding='utf-8')
 
 def inyectar_motor_nativo_en_main_activity():
