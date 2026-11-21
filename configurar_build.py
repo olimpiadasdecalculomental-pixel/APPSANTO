@@ -71,24 +71,22 @@ def forzar_kotlin_version():
             
             txt_final = '\n'.join(out)
             
-            # Aplicar la inyección respetando la sintaxis del archivo
+            # Aplicar inyección de JVM Target 11 para la libreria de camara
             if 'allprojects {' in txt_final and '-Xskip-metadata-version-check' not in txt_final:
                 if es_kts:
-                    # Sintaxis estricta para Kotlin DSL (.kts)
                     bloque_kts = '''allprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
             freeCompilerArgs.add("-Xskip-metadata-version-check")
         }
     }'''
                     txt_final = txt_final.replace('allprojects {', bloque_kts, 1)
                 else:
-                    # Sintaxis estricta para Groovy (.gradle)
                     bloque_groovy = '''allprojects {
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
-            jvmTarget = "1.8"
+            jvmTarget = "11"
             freeCompilerArgs += ["-Xskip-metadata-version-check"]
         }
     }'''
