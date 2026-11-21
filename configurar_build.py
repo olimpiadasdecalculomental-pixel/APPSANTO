@@ -34,7 +34,6 @@ def es_png_rgba_valido(data: bytes) -> bool:
 def forzar_kotlin_version():
     version_segura = "2.1.0"
     
-    # 1. Ajustar version de plugin de kotlin en settings
     for f in ['android/settings.gradle', 'android/settings.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
@@ -48,7 +47,6 @@ def forzar_kotlin_version():
                 content = content.replace('plugins {', f'plugins {{\n    id "org.jetbrains.kotlin.android" version "{version_segura}" apply false', 1)
             p.write_text(content, encoding='utf-8')
 
-    # 2. Ajustar version en build.gradle
     for f in ['android/build.gradle', 'android/build.gradle.kts']:
         p = pathlib.Path(f)
         if p.exists():
@@ -57,8 +55,6 @@ def forzar_kotlin_version():
             
             content = re.sub(r'^\s*ext\.kotlin_version\s*=.*$', '', content, flags=re.MULTILINE)
             content = re.sub(r'^\s*extra\["kotlin_version"\]\s*=.*$', '', content, flags=re.MULTILINE)
-            
-            # Limpiar bloques allprojects previos
             content = re.sub(r'allprojects\s*\{[\s\S]*?tasks\.withType.*?\}\s*\}', '', content)
             
             if es_kts:
@@ -90,8 +86,7 @@ allprojects {
 def arreglar_repositorios_gradle():
     archivos_gradle = [
         'android/settings.gradle', 'android/settings.gradle.kts', 
-        'android/build.gradle', 'android/build.gradle.kts', 
-        'android/app/build.gradle', 'android/app/build.gradle.kts'
+        'android/build.gradle', 'android/build.gradle.kts'
     ]
     
     for f in archivos_gradle:
@@ -126,6 +121,38 @@ def asegurar_gradle_properties():
         if 'kotlin.jvm.target.validation.mode' not in t:
             t += '\nkotlin.jvm.target.validation.mode=warning'
         props.write_text(t, encoding='utf-8')
+
+def sanear_app_build_gradle():
+    # Arregla quirurgicamente el archivo de la App (que perdimos en el intento anterior por Regex)
+    for f in ['android/app/build.gradle', 'android/app/build.gradle.kts']:
+        p = pathlib.Path(f)
+        if p.exists():
+            es_kts = f.endswith('.kts')
+            txt = p.read_text(encoding='utf-8')
+            
+            # Borrar inserciones defectuosas anteriores
+            txt = re.sub(r'^\s*ndkVersion\s*.*?$', '', txt, flags=re.MULTILINE)
+            
+            # Forzar los Sdk de manera limpia (evitando romper bloques)
+            if es_kts:
+                txt = re.sub(r'minSdk\s*=\s*(flutter\.minSdkVersion|\d+)', r'minSdk = 24', txt)
+                txt = re.sub(r'compileSdk\s*=\s*(flutter\.compileSdkVersion|\d+)', r'compileSdk = 36', txt)
+                txt = re.sub(r'targetSdk\s*=\s*(flutter\.targetSdkVersion|\d+)', r'targetSdk = 36', txt)
+                txt = txt.replace('JavaVersion.VERSION_1_8', 'JavaVersion.VERSION_17')
+                txt = txt.replace('JavaVersion.VERSION_11', 'JavaVersion.VERSION_17')
+                # En Kotlin DSL el ndkVersion se usa como string
+                if 'ndkVersion' not in txt:
+                    txt = txt.replace('compileSdk = 36', 'compileSdk = 36\n        ndkVersion = "27.0.12077973"')
+            else:
+                txt = re.sub(r'minSdkVersion\s+(flutter\.minSdkVersion|\d+)', r'minSdkVersion 24', txt)
+                txt = re.sub(r'compileSdkVersion\s+(flutter\.compileSdkVersion|\d+)', r'compileSdkVersion 36', txt)
+                txt = re.sub(r'targetSdkVersion\s+(flutter\.targetSdkVersion|\d+)', r'targetSdkVersion 36', txt)
+                txt = txt.replace('JavaVersion.VERSION_1_8', 'JavaVersion.VERSION_17')
+                txt = txt.replace('JavaVersion.VERSION_11', 'JavaVersion.VERSION_17')
+                if 'ndkVersion' not in txt:
+                    txt = txt.replace('compileSdkVersion 36', 'compileSdkVersion 36\n        ndkVersion "27.0.12077973"')
+            
+            p.write_text(txt, encoding='utf-8')
 
 def inyectar_motor_nativo_en_main_activity():
     main_dir = pathlib.Path('android/app/src/main')
@@ -364,35 +391,8 @@ def configurar_android():
             
     arreglar_repositorios_gradle()
     asegurar_gradle_properties()
+    sanear_app_build_gradle()
     inyectar_motor_nativo_en_main_activity()
-
-    for ruta_g in ['android/app/build.gradle', 'android/app/build.gradle.kts']:
-        gp = pathlib.Path(ruta_g)
-        if gp.exists():
-            gtxt = gp.read_text(encoding='utf-8')
-            
-            # Limpiar configuracion de target vieja
-            gtxt = re.sub(r'^\s*ndkVersion\s*.*?$', '', gtxt, flags=re.MULTILINE)
-            gtxt = re.sub(r'minSdkVersion\s+.*', r'minSdkVersion 24', gtxt)
-            gtxt = re.sub(r'minSdk\s*=.*', r'minSdk = 24', gtxt)
-            gtxt = re.sub(r'compileSdkVersion\s+.*', r'compileSdkVersion 36', gtxt)
-            gtxt = re.sub(r'compileSdk\s*=.*', r'compileSdk = 36', gtxt)
-            
-            if 'ndkVersion' not in gtxt:
-                gtxt = re.sub(r'(compileSdkVersion\s+36)', r'\1\n        ndkVersion "27.0.12077973"', gtxt)
-                gtxt = re.sub(r'(compileSdk\s*=\s*36)', r'\1\n        ndkVersion = "27.0.12077973"', gtxt)
-
-            # Alinear a JVM 17 (Java)
-            gtxt = re.sub(r'JavaVersion\.VERSION_1_8', 'JavaVersion.VERSION_17', gtxt)
-            gtxt = re.sub(r'JavaVersion\.VERSION_11', 'JavaVersion.VERSION_17', gtxt)
-            
-            # Alinear a JVM 17 (Kotlin App Level si existe)
-            gtxt = re.sub(r'jvmTarget\s*=\s*[\'"]1\.8[\'"]', 'jvmTarget = "17"', gtxt)
-            gtxt = re.sub(r'jvmTarget\s*=\s*[\'"]11[\'"]', 'jvmTarget = "17"', gtxt)
-            gtxt = re.sub(r'JvmTarget\.JVM_1_8', 'JvmTarget.JVM_17', gtxt)
-            gtxt = re.sub(r'JvmTarget\.JVM_11', 'JvmTarget.JVM_17', gtxt)
-
-            gp.write_text(gtxt, encoding='utf-8')
 
 def resolver_pubspec():
     pub_path = pathlib.Path('pubspec.yaml')
