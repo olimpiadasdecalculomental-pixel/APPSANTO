@@ -95,7 +95,7 @@ class _Esq4CamaraQrAsistenciaState extends State<Esq4CamaraQrAsistencia> {
                       _codigoQrDetectado = barcodes.first.rawValue!;
                       _qrEscaneado = true;
                     });
-                    widget.onFeedback('QR Detectado: \');
+                    widget.onFeedback('QR Detectado: $_codigoQrDetectado');
                   }
                 },
               ),

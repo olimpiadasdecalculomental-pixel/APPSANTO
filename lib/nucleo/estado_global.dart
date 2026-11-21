@@ -12,8 +12,8 @@ class EstadoGlobalSdui extends ChangeNotifier {
 
   final Map _almacen = {
     'sistema': {
-      'esquema_activo': 'esquema1',
-      'app_id_activo': 'APP_UNIVERSAL_SDUI',
+      'esquema_activo': 'esquema4',
+      'app_id_activo': 'APP_ESQUEMA4_CLUB',
       'estado_ciclo_vida': 'RESUMED',
       'contador_pausas': 0,
       'modo_offline': false,

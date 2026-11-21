@@ -9,7 +9,7 @@ import 'esq4_rpcs.dart';
 class Esq4AlmacenActualizacion {
   static Future<String> _obtenerDirectorioPrivado() async {
     final dir = await getApplicationDocumentsDirectory();
-    final String pathFinal = '\/esq4_boveda_archivos';
+    final String pathFinal = '${dir.path}/esq4_boveda_archivos';
     final directory = Directory(pathFinal);
     if (!await directory.exists()) {
       await directory.create(recursive: true);
@@ -56,7 +56,7 @@ class Esq4AlmacenActualizacion {
 
       return resAuditoria;
     } catch (e) {
-      return {'exito': false, 'mensaje': 'Error compartiendo APK: \'};
+      return {'exito': false, 'mensaje': 'Error compartiendo APK: $e'};
     }
   }
 

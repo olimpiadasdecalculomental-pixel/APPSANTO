@@ -27,6 +27,12 @@ import 'motores_juegos_cognitivos.dart';
 import 'bus_hardware_universal.dart';
 import 'widgets_stitch_media.dart';
 
+import '../esquema4/esq4_variables_admin.dart';
+import '../esquema4/esq4_visibilidad_pantallas.dart';
+import '../esquema4/esq4_camara_qr_asistencia.dart';
+import '../esquema4/esq4_video_publicidad.dart';
+import '../esquema4/esq4_almacen_apk_actualizacion.dart';
+
 class LienzoUniversalSdui extends StatefulWidget {
   const LienzoUniversalSdui({super.key});
   @override
@@ -72,8 +78,13 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
     final List filtradas = listaCruda.where((item) {
       if (item is! Map) return false;
       final String rolReq = (item['rol_requerido']?.toString() ?? 'TODOS').toUpperCase().trim();
-      return rolReq.isEmpty || rolReq == 'TODOS' || rolUsuario == 'ADMIN' || rolReq == rolUsuario;
+      
+      bool cumpleRol = (rolReq.isEmpty || rolReq == 'TODOS' || rolUsuario == 'ADMIN' || rolReq == rolUsuario);
+      bool cumpleVisibilidad = Esq4VariablesAdmin.esPantallaVisible(item['arbol_json'] as Map? ?? {});
+      
+      return cumpleRol && cumpleVisibilidad;
     }).toList();
+    
     final int idxSeguro = filtradas.isEmpty ? 0 : _idxPantalla.clamp(0, filtradas.length - 1);
     setState(() {
       _pantallas = filtradas;
@@ -281,6 +292,19 @@ class RenderizadorAtomicoSdui {
     }
     if (tipoUpper == 'SDUI_CUBO_3D') {
       return SduiCubo3dAtomico(nodoRaw: nodoRaw);
+    }
+    
+    if (tipoUpper == 'ESQ4_CAMARA_QR_ASISTENCIA') {
+      return Esq4CamaraQrAsistencia(nodoRaw: nodoRaw, onFeedback: onFeedback);
+    }
+    if (tipoUpper == 'ESQ4_VIDEO_PUBLICIDAD') {
+      return Esq4VideoPublicidad(nodoRaw: nodoRaw, onFeedback: onFeedback);
+    }
+    if (tipoUpper == 'ESQ4_BOTON_ACTUALIZACION' || tipoUpper == 'ESQ4_BOTON_ACTUALIZACION_APK') {
+      return Esq4AlmacenActualizacion.construirBotonActualizacion(context);
+    }
+    if (tipoUpper == 'ESQ4_PANEL_VISIBILIDAD' || tipoUpper == 'ESQ4_PANEL_VISIBILIDAD_ADMIN') {
+      return Esq4PanelVisibilidadAdmin(arbolJsonPantalla: nodoRaw, pantallaId: nodoRaw['pantalla_id']?.toString() ?? '');
     }
 
     final List hijosRaw = (nodoRaw['children'] as List?) ?? [];
@@ -682,7 +706,6 @@ class RenderizadorAtomicoSdui {
       case 'tabs':
         final List pestanas = (nodoRaw['tabs'] as List?) ?? ['Tab 1', 'Tab 2'];
         
-        // Ajustar hijos para que coincidan con la cantidad de pestañas con TIPO ESTRICTO
         final List<Widget> hijosAjustados = List<Widget>.generate(pestanas.length, (idx) {
           if (idx < hijosRaw.length && hijosRaw[idx] is Map) {
             return SingleChildScrollView(
@@ -853,7 +876,6 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
         }
         
         _siguienteCursor = res['siguiente_cursor']?.toString();
-        // Criterio inteligente de paginacion: Si me mandas menos de 10 o nulo, se acabó
         _hayMasItems = _siguienteCursor != null && _siguienteCursor != 'null' && nuevosItems.length == 10;
         
         EstadoGlobalSdui.instancia.escribirRuta('sistema.ultima_lista_top10', _itemsRemotos, notificar: false);

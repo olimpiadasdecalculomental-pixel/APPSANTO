@@ -89,9 +89,9 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text('Puntos: \', style: const TextStyle(color: Color(0xFF00FF66), fontSize: 10, fontWeight: FontWeight.bold)),
-                Text('Vistas: \', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 10, fontWeight: FontWeight.bold)),
-                Text('Alcance: \', style: const TextStyle(color: Color(0xFF00F3FF), fontSize: 10, fontWeight: FontWeight.bold)),
+                Text('Puntos: $puntosRestantes', style: const TextStyle(color: Color(0xFF00FF66), fontSize: 10, fontWeight: FontWeight.bold)),
+                Text('Vistas: $vistasCompletas', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 10, fontWeight: FontWeight.bold)),
+                Text('Alcance: $alcance', style: const TextStyle(color: Color(0xFF00F3FF), fontSize: 10, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -111,7 +111,7 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
               onPressed: (_videoFinalizado && !_procesandoCobro) ? _reclamarPuntosPublicidad : null,
               child: _procesandoCobro 
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black))
-                  : Text(_videoFinalizado ? 'RECLAMAR PUNTOS' : 'MIRA EL VIDEO COMPLETO (\%)', style: const TextStyle(fontWeight: FontWeight.w900)),
+                  : Text(_videoFinalizado ? 'RECLAMAR PUNTOS' : 'MIRA EL VIDEO COMPLETO (${(_progresoReal * 100).toInt()}%)', style: const TextStyle(fontWeight: FontWeight.w900)),
             ),
           )
         ],

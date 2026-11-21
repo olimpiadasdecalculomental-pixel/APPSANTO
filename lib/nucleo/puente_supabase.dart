@@ -11,8 +11,8 @@ class PuenteSupabaseSdui {
 
   static String supabaseUrl = _defaultUrl;
   static String supabaseAnonKey = _defaultAnonKey;
-  static String esquemaActivo = 'esquema1';
-  static String appIdActivo = 'APP_UNIVERSAL_SDUI';
+  static String esquemaActivo = 'esquema4';
+  static String appIdActivo = 'APP_ESQUEMA4_CLUB';
   static String geminiApiKey = '';
 
   static Box? _obtenerBoveda() {
@@ -23,22 +23,28 @@ class PuenteSupabaseSdui {
   }
 
   static String _generarKeyCachePantallas(String esq, String app) {
-    return crypto_pkg.md5.convert(utf8.encode('cache_pantallas_${esq}_$app')).toString();
+    return crypto_pkg.md5.convert(utf8.encode('cache_pantallas_v50_${esq}_$app')).toString();
   }
 
   static Future inicializarPuenteUniversal() async {
     try {
       final box = _obtenerBoveda();
       if (box != null) {
-        final String? rawConfig = box.get('contexto_app_v45');
+        final String? rawConfig = box.get('contexto_app_v50') ?? box.get('contexto_app_v45');
         if (rawConfig != null && rawConfig.isNotEmpty) {
           final Map data = jsonDecode(rawConfig) as Map;
-          if (data['esquema_activo'] != null && data['esquema_activo'].toString().trim().isNotEmpty) {
-            esquemaActivo = data['esquema_activo'].toString().trim();
+          
+          final String leidoEsq = data['esquema_activo']?.toString().trim() ?? '';
+          final String leidoApp = data['app_id_activo']?.toString().trim() ?? '';
+
+          if (leidoEsq == 'esquema1' && leidoApp == 'APP_UNIVERSAL_SDUI') {
+            esquemaActivo = 'esquema4';
+            appIdActivo = 'APP_ESQUEMA4_CLUB';
+          } else {
+            if (leidoEsq.isNotEmpty) esquemaActivo = leidoEsq;
+            if (leidoApp.isNotEmpty) appIdActivo = leidoApp;
           }
-          if (data['app_id_activo'] != null && data['app_id_activo'].toString().trim().isNotEmpty) {
-            appIdActivo = data['app_id_activo'].toString().trim();
-          }
+
           if (data['supabase_url'] != null && data['supabase_url'].toString().trim().isNotEmpty) {
             supabaseUrl = data['supabase_url'].toString().trim();
           }
@@ -72,7 +78,7 @@ class PuenteSupabaseSdui {
     try {
       final box = _obtenerBoveda();
       if (box != null) {
-        await box.put('contexto_app_v45', jsonEncode({
+        await box.put('contexto_app_v50', jsonEncode({
           'esquema_activo': esquemaActivo,
           'app_id_activo': appIdActivo,
           'supabase_url': supabaseUrl,
@@ -229,11 +235,19 @@ class PuenteSupabaseSdui {
 
     if (res['exito'] == true) {
       if (res['sin_cambios'] == true && pantallasCacheadas != null) {
+        if (pantallasCacheadas.isEmpty) {
+           EstadoGlobalSdui.instancia.escribirRuta('sistema.ultimo_mensaje', 'Diagnóstico: 0 pantallas en caché para Esquema: $esqObj | App ID: $appObj', notificar: true);
+        }
         return pantallasCacheadas;
       }
 
       if (res['pantallas'] is List) {
         final List listaRemota = List.from(res['pantallas'] as List);
+        
+        if (listaRemota.isEmpty) {
+           EstadoGlobalSdui.instancia.escribirRuta('sistema.ultimo_mensaje', 'Diagnóstico: 0 pantallas activas en Esquema: $esqObj | App ID: $appObj', notificar: true);
+        }
+
         final String nuevoHash = res['version_hash']?.toString() ?? '';
         try {
           if (box != null) {
@@ -245,6 +259,10 @@ class PuenteSupabaseSdui {
         } catch (_) {}
         return listaRemota;
       }
+    } else {
+      final String code = res['codigo_http']?.toString() ?? 'OFFLINE';
+      final String err = res['mensaje']?.toString() ?? 'Error de conexión o validación';
+      EstadoGlobalSdui.instancia.escribirRuta('sistema.ultimo_mensaje', 'Error $code en Esquema: $esqObj | App: $appObj -> $err', notificar: true);
     }
 
     if (pantallasCacheadas != null) {
@@ -371,8 +389,8 @@ class PuenteSupabaseSdui {
               'subtitulo': 'Esquema: {{sistema.esquema_activo}} · App: {{sistema.app_id_activo}}',
               'color_borde': '#00FF66',
               'children': [
-                {'type': 'input', 'campo': 'esquema', 'label': 'Esquema PostgreSQL:', 'placeholder': 'esquema1'},
-                {'type': 'input', 'campo': 'app_id', 'label': 'App ID Activa:', 'placeholder': 'APP_UNIVERSAL_SDUI'},
+                {'type': 'input', 'campo': 'esquema', 'label': 'Esquema PostgreSQL:', 'placeholder': 'esquema4'},
+                {'type': 'input', 'campo': 'app_id', 'label': 'App ID Activa:', 'placeholder': 'APP_ESQUEMA4_CLUB'},
                 {'type': 'input', 'campo': 'gemini_key', 'label': 'Gemini API Key (Opcional):', 'placeholder': 'AIza...'},
                 {
                   'type': 'button',
