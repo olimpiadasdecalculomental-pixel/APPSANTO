@@ -71,13 +71,13 @@ def forzar_kotlin_version():
             
             txt_final = '\n'.join(out)
             
-            # Aplicar inyección de JVM Target 11 para la libreria de camara
+            # Aplicar inyección de JVM Target 17 absoluto para evitar choques con el GitHub Action (Java 17)
             if 'allprojects {' in txt_final and '-Xskip-metadata-version-check' not in txt_final:
                 if es_kts:
                     bloque_kts = '''allprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
             freeCompilerArgs.add("-Xskip-metadata-version-check")
         }
     }'''
@@ -86,7 +86,7 @@ def forzar_kotlin_version():
                     bloque_groovy = '''allprojects {
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
-            jvmTarget = "11"
+            jvmTarget = "17"
             freeCompilerArgs += ["-Xskip-metadata-version-check"]
         }
     }'''
