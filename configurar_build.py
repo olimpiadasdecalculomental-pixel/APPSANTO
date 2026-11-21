@@ -69,16 +69,31 @@ def forzar_kotlin_version():
                     else:
                         out.append(f"    ext.kotlin_version = '{version_segura}'")
             
-            # Inyectar la excepcion de Metadata Version Check para Kotlin 2.1.0 vs 1.9.0
             txt_final = '\n'.join(out)
+            
+            # Aplicar la inyección respetando la sintaxis del archivo
             if 'allprojects {' in txt_final and '-Xskip-metadata-version-check' not in txt_final:
-                txt_final = txt_final.replace('allprojects {', '''allprojects {
+                if es_kts:
+                    # Sintaxis estricta para Kotlin DSL (.kts)
+                    bloque_kts = '''allprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+            freeCompilerArgs.add("-Xskip-metadata-version-check")
+        }
+    }'''
+                    txt_final = txt_final.replace('allprojects {', bloque_kts, 1)
+                else:
+                    # Sintaxis estricta para Groovy (.gradle)
+                    bloque_groovy = '''allprojects {
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
         kotlinOptions {
             jvmTarget = "1.8"
             freeCompilerArgs += ["-Xskip-metadata-version-check"]
         }
-    }''', 1)
+    }'''
+                    txt_final = txt_final.replace('allprojects {', bloque_groovy, 1)
+                    
             p.write_text(txt_final, encoding='utf-8')
 
 def arreglar_repositorios_gradle():
