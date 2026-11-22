@@ -22,6 +22,27 @@ class PuenteSupabaseSdui {
     return null;
   }
 
+  static Future<void> limpiarCacheYRecargar() async {
+    try {
+      final box = _obtenerBoveda();
+      if (box != null) {
+        final llavesABorrar = box.keys.where((k) => 
+          k.toString() == 'contexto_app_v50' || 
+          k.toString() == 'contexto_app_v45' || 
+          k.toString().startsWith('cache_pantallas_v50_')
+        ).toList();
+        
+        for (var llave in llavesABorrar) {
+          await box.delete(llave);
+        }
+      }
+      esquemaActivo = 'esquema4';
+      appIdActivo = 'APP_ESQUEMA4_CLUB';
+      EstadoGlobalSdui.instancia.escribirRuta('sistema.esquema_activo', esquemaActivo, notificar: false);
+      EstadoGlobalSdui.instancia.escribirRuta('sistema.app_id_activo', appIdActivo, notificar: true);
+    } catch (_) {}
+  }
+
   static String _generarKeyCachePantallas(String esq, String app) {
     return crypto_pkg.md5.convert(utf8.encode('cache_pantallas_v50_${esq}_$app')).toString();
   }

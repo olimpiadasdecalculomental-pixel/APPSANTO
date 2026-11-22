@@ -1,3 +1,7 @@
+cd D:\APPSANTO
+New-Item -ItemType Directory -Force -Path "lib\motores" | Out-Null
+
+@'
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,7 +20,6 @@ import 'package:drag_and_drop_lists/drag_and_drop_lists.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
-import 'package:highlight/highlight.dart' as hl_pkg;
 import 'package:graphview/GraphView.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
 
@@ -74,23 +77,26 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
     if (mounted) setState(() => _cargando = true);
     final List listaCruda = await PuenteSupabaseSdui.sincronizarPantallasConHash();
     if (!mounted) return;
+
     final String rolUsuario = (EstadoGlobalSdui.instancia.leerRuta('sesion.rol')?.toString() ?? 'TODOS').toUpperCase().trim();
+
     final List filtradas = listaCruda.where((item) {
       if (item is! Map) return false;
       final String rolReq = (item['rol_requerido']?.toString() ?? 'TODOS').toUpperCase().trim();
-      
+
       bool cumpleRol = (rolReq.isEmpty || rolReq == 'TODOS' || rolUsuario == 'ADMIN' || rolReq == rolUsuario);
       bool cumpleVisibilidad = Esq4VariablesAdmin.esPantallaVisible(item['arbol_json'] as Map? ?? {});
-      
+
       return cumpleRol && cumpleVisibilidad;
     }).toList();
-    
+
     final int idxSeguro = filtradas.isEmpty ? 0 : _idxPantalla.clamp(0, filtradas.length - 1);
     setState(() {
       _pantallas = filtradas;
       _idxPantalla = idxSeguro;
       _cargando = false;
     });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageCtrl.hasClients && _pantallas.isNotEmpty) {
         final int pagActual = (_pageCtrl.page?.round() ?? 0);
@@ -132,7 +138,7 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
     final Color colSec = RenderizadorAtomicoSdui.parsearColor(estado.leerRuta('sistema.color_secundario')?.toString(), const Color(0xFF00F3FF));
     final int idxSeguro = _pantallas.isEmpty ? 0 : _idxPantalla.clamp(0, _pantallas.length - 1);
     final Map arbolActual = _parsearArbolActual(idxSeguro);
-    
+
     final bool ocultarAppBar = arbolActual['pantalla_completa'] == true ||
         arbolActual['ocultar_appbar'] == true ||
         estado.leerRuta('sistema.pantalla_completa') == true;
@@ -145,7 +151,7 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
       }
     });
 
-    final String tituloActual = _pantallas.isNotEmpty ? ((_pantallas[idxSeguro] as Map)['titulo']?.toString() ?? 'SDUI Universal') : '0 pantallas activas';
+    final String tituloActual = _pantallas.isNotEmpty ? ((_pantallas[idxSeguro] as Map)['titulo']?.toString() ?? 'SDUI Universal') : 'Sin Pantallas (Lienzo Vacío)';
     final String rolActivo = estado.leerRuta('sesion.rol')?.toString() ?? 'TODOS';
 
     return Scaffold(
@@ -181,13 +187,22 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
                         children: [
                           Icon(Icons.layers_clear, color: colSec, size: 42),
                           const SizedBox(height: 12),
-                          const Text('0 pantallas activas en este esquema/app', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 12),
+                          const Text(
+                            '0 pantallas activas para tu rol en este esquema.\nPosiblemente estén marcadas como NO_VISIBLE o la tabla está vacía.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 16),
                           ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(backgroundColor: colPrim, foregroundColor: Colors.black),
-                            icon: const Icon(Icons.sync, size: 18),
-                            label: const Text('REINTENTAR SINCRONIZACION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                            onPressed: _sincronizarPantallas,
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black),
+                            icon: const Icon(Icons.cleaning_services, size: 18),
+                            label: const Text('LIMPIAR CACHE Y RECARGAR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                            onPressed: () => EjecutorFlujosSdui.ejecutarCadena(
+                              context: context,
+                              flujoAcciones: [{'accion': 'LIMPIAR_CACHE_Y_RECARGAR'}],
+                              onRecargarPantallas: _sincronizarPantallas,
+                              onFeedback: _mostrarFeedback,
+                            ),
                           ),
                         ],
                       ),
@@ -201,6 +216,8 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
                     },
                     itemBuilder: (ctx, idx) {
                       if (idx < 0 || idx >= _pantallas.length) return const SizedBox.shrink();
+                      final Map regPantalla = Map.from(_pantallas[idx] as Map);
+                      final String pantallaIdActual = regPantalla['pantalla_id']?.toString() ?? '';
                       final Map arbol = _parsearArbolActual(idx);
                       return RefreshIndicator(
                         color: colPrim,
@@ -213,6 +230,8 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
                             builder: (context, _) => RenderizadorAtomicoSdui.construirNodo(
                               context: context,
                               nodoRaw: arbol,
+                              arbolRaiz: arbol,
+                              pantallaIdActual: pantallaIdActual,
                               estado: estado,
                               onNavegar: _navegarAPantalla,
                               onRecargar: _sincronizarPantallas,
@@ -273,11 +292,14 @@ class RenderizadorAtomicoSdui {
   static Widget construirNodo({
     required BuildContext context,
     required Map nodoRaw,
+    Map? arbolRaiz,
+    String pantallaIdActual = '',
     required EstadoGlobalSdui estado,
     required void Function(String) onNavegar,
     required Future Function() onRecargar,
     required void Function(String) onFeedback,
   }) {
+    final Map arbolCompleto = arbolRaiz ?? nodoRaw;
     final String tipo = (nodoRaw['type']?.toString() ?? nodoRaw['tipo']?.toString() ?? 'card').trim();
     final String tipoUpper = tipo.toUpperCase();
 
@@ -293,7 +315,7 @@ class RenderizadorAtomicoSdui {
     if (tipoUpper == 'SDUI_CUBO_3D') {
       return SduiCubo3dAtomico(nodoRaw: nodoRaw);
     }
-    
+
     if (tipoUpper == 'ESQ4_CAMARA_QR_ASISTENCIA') {
       return Esq4CamaraQrAsistencia(nodoRaw: nodoRaw, onFeedback: onFeedback);
     }
@@ -304,7 +326,15 @@ class RenderizadorAtomicoSdui {
       return Esq4AlmacenActualizacion.construirBotonActualizacion(context);
     }
     if (tipoUpper == 'ESQ4_PANEL_VISIBILIDAD' || tipoUpper == 'ESQ4_PANEL_VISIBILIDAD_ADMIN') {
-      return Esq4PanelVisibilidadAdmin(arbolJsonPantalla: nodoRaw, pantallaId: nodoRaw['pantalla_id']?.toString() ?? '');
+      final String pid = (nodoRaw['pantalla_id']?.toString() ?? '').trim().isNotEmpty
+          ? nodoRaw['pantalla_id'].toString().trim()
+          : pantallaIdActual;
+      return Esq4PanelVisibilidadAdmin(
+        arbolJsonPantalla: arbolCompleto,
+        pantallaId: pid,
+        onRecargarPantallas: onRecargar,
+        onFeedback: onFeedback,
+      );
     }
 
     final List hijosRaw = (nodoRaw['children'] as List?) ?? [];
@@ -312,10 +342,10 @@ class RenderizadorAtomicoSdui {
     switch (tipo.toLowerCase()) {
       case 'video_universal':
         return VideoUniversalSdui(nodoRaw: nodoRaw);
-      
+
       case 'escaner_qr':
         return EscanerQrSdui(nodoRaw: nodoRaw, onFeedback: onFeedback);
-      
+
       case 'icono':
         final List flujo = (nodoRaw['flujo_acciones'] as List?) ?? [];
         final widgetIcono = IconoSdui(nodoRaw: nodoRaw, estado: estado);
@@ -331,17 +361,17 @@ class RenderizadorAtomicoSdui {
       case 'column':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
+          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
         );
 
       case 'row':
         return Row(
-          children: hijosRaw.map((h) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()))).toList(),
+          children: hijosRaw.map((h) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()))).toList(),
         );
 
       case 'stack':
         return Stack(
-          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
+          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
         );
 
       case 'lottie':
@@ -418,7 +448,7 @@ class RenderizadorAtomicoSdui {
           itemCount: hijosRaw.length,
           itemBuilder: (context, index) {
             final h = hijosRaw[index];
-            return h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink();
+            return h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink();
           },
         );
 
@@ -437,8 +467,8 @@ class RenderizadorAtomicoSdui {
                 ),
                 children: itemsKanban.map((it) {
                   return DragAndDropItem(
-                    child: it is Map 
-                        ? construirNodo(context: context, nodoRaw: Map.from(it), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) 
+                    child: it is Map
+                        ? construirNodo(context: context, nodoRaw: Map.from(it), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback)
                         : Container(padding: const EdgeInsets.all(8), child: Text(it.toString(), style: const TextStyle(color: Colors.white))),
                   );
                 }).toList(),
@@ -600,7 +630,7 @@ class RenderizadorAtomicoSdui {
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
+              children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
             ),
           ),
         );
@@ -700,17 +730,17 @@ class RenderizadorAtomicoSdui {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
           childAspectRatio: 1.2,
-          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
+          children: hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
         );
 
       case 'tabs':
         final List pestanas = (nodoRaw['tabs'] as List?) ?? ['Tab 1', 'Tab 2'];
-        
+
         final List<Widget> hijosAjustados = List<Widget>.generate(pestanas.length, (idx) {
           if (idx < hijosRaw.length && hijosRaw[idx] is Map) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 10), 
-              child: construirNodo(context: context, nodoRaw: Map.from(hijosRaw[idx] as Map), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback)
+              padding: const EdgeInsets.only(top: 10),
+              child: construirNodo(context: context, nodoRaw: Map.from(hijosRaw[idx] as Map), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback),
             );
           }
           return const Center(child: Text('Sin contenido', style: TextStyle(color: Colors.white54)));
@@ -750,7 +780,7 @@ class RenderizadorAtomicoSdui {
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: hijosRaw.map((h) => h is Map ? construirNodo(context: ctx, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
+                    children: hijosRaw.map((h) => h is Map ? construirNodo(context: ctx, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()).toList(),
                   ),
                 ),
               ),
@@ -783,7 +813,7 @@ class RenderizadorAtomicoSdui {
         final Color bordeCol = parsearColor(nodoRaw['color_borde']?.toString(), colSecDef);
         final String tit = estado.interpolarTexto(nodoRaw['titulo']?.toString() ?? '');
         final String sub = estado.interpolarTexto(nodoRaw['subtitulo']?.toString() ?? '');
-        
+
         final bool isGlass = nodoRaw['glass'] == true;
         final List grad = nodoRaw['gradiente'] is List ? (nodoRaw['gradiente'] as List) : [];
 
@@ -792,25 +822,25 @@ class RenderizadorAtomicoSdui {
           children: [
             if (tit.isNotEmpty) Text(tit, style: TextStyle(color: bordeCol, fontSize: 14, fontWeight: FontWeight.w900)),
             if (sub.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4, bottom: 10), child: Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 11.5))),
-            ...hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()),
+            ...hijosRaw.map((h) => h is Map ? construirNodo(context: context, nodoRaw: Map.from(h), arbolRaiz: arbolCompleto, pantallaIdActual: pantallaIdActual, estado: estado, onNavegar: onNavegar, onRecargar: onRecargar, onFeedback: onFeedback) : const SizedBox.shrink()),
           ],
         );
 
         Widget tarjetaFisica;
         if (isGlass || grad.isNotEmpty) {
-           tarjetaFisica = ContenedorStitchSdui(
-             glass: isGlass,
-             coloresHex: grad,
-             colorBorde: bordeCol,
-             child: contenidoTarjeta,
-           );
+          tarjetaFisica = ContenedorStitchSdui(
+            glass: isGlass,
+            coloresHex: grad,
+            colorBorde: bordeCol,
+            child: contenidoTarjeta,
+          );
         } else {
-           tarjetaFisica = Container(
-             margin: const EdgeInsets.only(bottom: 14),
-             padding: const EdgeInsets.all(14),
-             decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(14), border: Border.all(color: bordeCol, width: 1.5)),
-             child: contenidoTarjeta,
-           );
+          tarjetaFisica = Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(14), border: Border.all(color: bordeCol, width: 1.5)),
+            child: contenidoTarjeta,
+          );
         }
 
         if (nodoRaw['animar'] == true) {
@@ -852,32 +882,32 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
   Future _consultarCursorTop10({bool reiniciar = false}) async {
     if (_cargandoTop10 || (!reiniciar && !_hayMasItems)) return;
     setState(() => _cargandoTop10 = true);
-    
+
     final Map nodo = widget.nodoRaw;
     final String col = nodo['coleccion']?.toString() ?? 'RECORDS_COGNITIVOS';
-    
+
     final Map res = await PuenteSupabaseSdui.llamarRpcNano('nano_buscar_top10', {
       'p_app_id': PuenteSupabaseSdui.appIdActivo,
       'p_coleccion': col,
       'p_filtro': nodo['filtro'] ?? {},
       'p_cursor_fecha': reiniciar ? null : _siguienteCursor,
     });
-    
+
     if (!mounted) return;
     setState(() {
       _cargandoTop10 = false;
       if (res['items'] is List) {
         final List nuevosItems = res['items'] as List;
-        
+
         if (reiniciar) {
           _itemsRemotos = List.from(nuevosItems);
         } else {
           _itemsRemotos.addAll(nuevosItems);
         }
-        
+
         _siguienteCursor = res['siguiente_cursor']?.toString();
         _hayMasItems = _siguienteCursor != null && _siguienteCursor != 'null' && nuevosItems.length == 10;
-        
+
         EstadoGlobalSdui.instancia.escribirRuta('sistema.ultima_lista_top10', _itemsRemotos, notificar: false);
       }
     });
@@ -904,7 +934,9 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
                 estado.escribirRuta('form.item_id', filaDatos['id']?.toString() ?? '', notificar: false);
                 estado.escribirRuta('form.item_propietario', filaDatos['propietario_id']?.toString() ?? '', notificar: false);
                 estado.escribirRuta('form.item_estado', filaDatos['estado']?.toString() ?? '', notificar: false);
+
                 await EjecutorFlujosSdui.ejecutarCadena(context: context, flujoAcciones: flujo, onNavegar: widget.onNavegar, onRecargarPantallas: widget.onRecargar, onFeedback: widget.onFeedback);
+
                 if (bRaw['recargar_lista'] != false) await _consultarCursorTop10(reiniciar: true);
               },
               child: Text(txt, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
@@ -975,13 +1007,13 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
                   ),
                 );
               }),
-              
+
             if (_itemsRemotos.isNotEmpty)
               Align(
                 alignment: Alignment.centerRight,
-                child: _hayMasItems 
-                    ? (_cargandoTop10 
-                        ? const Padding(padding: EdgeInsets.all(8.0), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))) 
+                child: _hayMasItems
+                    ? (_cargandoTop10
+                        ? const Padding(padding: EdgeInsets.all(8.0), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
                         : TextButton(onPressed: () => _consultarCursorTop10(reiniciar: false), child: Text(txtSig, style: const TextStyle(color: Color(0xFFFFD700), fontSize: 11))))
                     : const Padding(
                         padding: EdgeInsets.only(top: 8.0, right: 8.0),
@@ -1069,7 +1101,7 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
                       if (flujoUnico.isNotEmpty)
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF66), foregroundColor: Colors.black),
-                          onPressed: () => EjecutorFlujosSdui.ejecutarCadena(context: context, flujoAcciones: flujoUnico, onNavegar: widget.onNavegar, onRecargarPantallas: widget.onRecargar, onFeedback: widget.onFeedback),
+                          onPressed: () => EjecutorFlujosSdui.ejecutarCadena(context: context, flujoAcciones: flujoUnico, onNavegar: onNavegar, onRecargarPantallas: onRecargar, onFeedback: onFeedback),
                           child: Text(txtBtn, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
                         ),
                     ],
@@ -1084,3 +1116,6 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
     );
   }
 }
+'@ | Set-Content -Path "lib\motores\renderizador_atomico.dart" -Encoding UTF8
+
+Write-Host "lib\motores\renderizador_atomico.dart actualizado." -ForegroundColor Green

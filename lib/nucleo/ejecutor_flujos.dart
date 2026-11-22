@@ -32,6 +32,13 @@ class EjecutorFlujosSdui {
       final Map paso = Map.from(estado.interpolarEstructura(pasoRaw) as Map);
       final String accion = (paso['accion']?.toString() ?? '').toUpperCase().trim();
 
+      if (accion == 'LIMPIAR_CACHE_Y_RECARGAR') {
+        await PuenteSupabaseSdui.limpiarCacheYRecargar();
+        onFeedback?.call('Caché limpiada exitosamente. Sincronizando entorno...');
+        await onRecargarPantallas?.call();
+        continue;
+      }
+
       if (accion == 'VALIDAR_IF') {
         final String condicionStr = paso['condicion']?.toString() ?? 'true';
         final bool cumple = evaluarCondicionBooleana(condicionStr, estado.almacenCompleto);
@@ -202,7 +209,6 @@ class EjecutorFlujosSdui {
           params = Map.from(paso['parametros'] as Map);
         } else {
           final Map pDatosFinal = Map.from((estado.leerRuta('form') as Map?) ?? {});
-          // Inyección inteligente de idempotency_key para transacciones seguras
           if (pDatosFinal['idempotency_key'] == null || pDatosFinal['idempotency_key'].toString().isEmpty) {
              pDatosFinal['idempotency_key'] = _uidGen.v4();
           }

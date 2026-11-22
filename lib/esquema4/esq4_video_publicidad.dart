@@ -1,3 +1,7 @@
+cd D:\APPSANTO
+New-Item -ItemType Directory -Force -Path "lib\esquema4" | Out-Null
+
+@'
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../nucleo/estado_global.dart';
@@ -16,6 +20,7 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
   VideoPlayerController? _vpCtrl;
   bool _videoFinalizado = false;
   bool _procesandoCobro = false;
+  bool _errorCarga = false;
   double _progresoReal = 0.0;
 
   @override
@@ -28,24 +33,32 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
           _vpCtrl!.addListener(_revisarAvance);
           _vpCtrl!.play();
           if (mounted) setState(() {});
+        }).catchError((_) {
+          if (mounted) setState(() => _errorCarga = true);
         });
+    } else {
+      _errorCarga = true;
     }
   }
 
   void _revisarAvance() {
     if (_vpCtrl == null || !_vpCtrl!.value.isInitialized) return;
-    
-    // Al no tener barra de progreso en UI, el usuario no puede hacer seek.
-    // Solo validamos que llegue al final reproduciendo normalmente.
+
     final pos = _vpCtrl!.value.position.inMilliseconds;
     final dur = _vpCtrl!.value.duration.inMilliseconds;
-    
+
     if (dur > 0) {
-      _progresoReal = (pos / dur).clamp(0.0, 1.0);
-      
-      if (!_vpCtrl!.value.isPlaying && pos >= dur && !_videoFinalizado) {
+      final nuevoProg = (pos / dur).clamp(0.0, 1.0);
+      if ((nuevoProg - _progresoReal).abs() >= 0.05 && mounted) {
+        setState(() => _progresoReal = nuevoProg);
+      }
+
+      if (pos >= (dur - 300) && !_videoFinalizado) {
         if (mounted) {
-          setState(() => _videoFinalizado = true);
+          setState(() {
+            _progresoReal = 1.0;
+            _videoFinalizado = true;
+          });
           widget.onFeedback('Video completado. Ya puedes reclamar tus puntos.');
         }
       }
@@ -69,8 +82,25 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
 
   @override
   Widget build(BuildContext context) {
+    if (_errorCarga) {
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF05101A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.redAccent),
+        ),
+        child: const Text('No se pudo cargar el video publicitario.', style: TextStyle(color: Colors.white70)),
+      );
+    }
+
     if (_vpCtrl == null || !_vpCtrl!.value.isInitialized) {
-      return Container(height: 200, color: Colors.black, child: const Center(child: CircularProgressIndicator(color: Color(0xFF00FF66))));
+      return Container(
+        height: 200,
+        color: Colors.black,
+        child: const Center(child: CircularProgressIndicator(color: Color(0xFF00FF66))),
+      );
     }
 
     final String puntosRestantes = widget.nodoRaw['puntos_restantes']?.toString() ?? '0';
@@ -79,13 +109,19 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: const Color(0xFF05101A), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFFD700))),
+      decoration: BoxDecoration(
+        color: const Color(0xFF05101A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFD700)),
+      ),
       child: Column(
         children: [
-          // Metricas en Vivo de la Campana
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: Color(0xFF142033), borderRadius: BorderRadius.vertical(top: Radius.circular(11))),
+            decoration: const BoxDecoration(
+              color: Color(0xFF142033),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(11)),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -95,27 +131,29 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
               ],
             ),
           ),
-          
-          // Reproductor sin controles de Seek
           AspectRatio(aspectRatio: _vpCtrl!.value.aspectRatio, child: VideoPlayer(_vpCtrl!)),
-          
-          // Boton estricto de reclamo
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _videoFinalizado ? const Color(0xFFFFD700) : Colors.grey, 
+                backgroundColor: _videoFinalizado ? const Color(0xFFFFD700) : Colors.grey,
                 foregroundColor: Colors.black,
                 minimumSize: const Size(double.infinity, 45),
               ),
               onPressed: (_videoFinalizado && !_procesandoCobro) ? _reclamarPuntosPublicidad : null,
-              child: _procesandoCobro 
+              child: _procesandoCobro
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black))
-                  : Text(_videoFinalizado ? 'RECLAMAR PUNTOS' : 'MIRA EL VIDEO COMPLETO (${(_progresoReal * 100).toInt()}%)', style: const TextStyle(fontWeight: FontWeight.w900)),
+                  : Text(
+                      _videoFinalizado ? 'RECLAMAR PUNTOS' : 'MIRA EL VIDEO COMPLETO (${(_progresoReal * 100).toInt()}%)',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
+'@ | Set-Content -Path "lib\esquema4\esq4_video_publicidad.dart" -Encoding UTF8
+
+Write-Host "esq4_video_publicidad.dart actualizado." -ForegroundColor Green

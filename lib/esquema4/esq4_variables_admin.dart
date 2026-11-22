@@ -51,7 +51,7 @@ class Esq4VariablesAdmin {
   static Color _parsearColor(String hex) {
     String limpio = hex.replaceAll('#', '').trim();
     if (limpio.length == 6) limpio = 'FF$limpio';
-    final val = int.tryParse(limpio, radix: 16);
+    final int? val = int.tryParse(limpio, radix: 16);
     return val != null ? Color(val) : Colors.white;
   }
 }
