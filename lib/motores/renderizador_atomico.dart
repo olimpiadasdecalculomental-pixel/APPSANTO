@@ -1098,7 +1098,7 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
                       if (flujoUnico.isNotEmpty)
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00FF66), foregroundColor: Colors.black),
-                          onPressed: () => EjecutorFlujosSdui.ejecutarCadena(context: context, flujoAcciones: flujoUnico, onNavegar: onNavegar, onRecargarPantallas: onRecargar, onFeedback: onFeedback),
+                         onPressed: () => EjecutorFlujosSdui.ejecutarCadena(context: context,flujoAcciones: flujoUnico,onNavegar: widget.onNavegar,onRecargarPantallas: widget.onRecargar,onFeedback: widget.onFeedback),
                           child: Text(txtBtn, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
                         ),
                     ],
