@@ -1,7 +1,4 @@
-cd D:\APPSANTO
-New-Item -ItemType Directory -Force -Path "lib\esquema4" | Out-Null
 
-@'
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../nucleo/estado_global.dart';
@@ -154,6 +151,3 @@ class _Esq4VideoPublicidadState extends State<Esq4VideoPublicidad> {
     );
   }
 }
-'@ | Set-Content -Path "lib\esquema4\esq4_video_publicidad.dart" -Encoding UTF8
-
-Write-Host "esq4_video_publicidad.dart actualizado." -ForegroundColor Green

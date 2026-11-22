@@ -1,7 +1,4 @@
-cd D:\APPSANTO
-New-Item -ItemType Directory -Force -Path "lib\esquema4" | Out-Null
 
-@'
 import 'package:flutter/material.dart';
 import '../nucleo/estado_global.dart';
 import '../nucleo/ejecutor_flujos.dart';
@@ -88,6 +85,3 @@ class _Esq4PanelVisibilidadAdminState extends State<Esq4PanelVisibilidadAdmin> {
     );
   }
 }
-'@ | Set-Content -Path "lib\esquema4\esq4_visibilidad_pantallas.dart" -Encoding UTF8
-
-Write-Host "esq4_visibilidad_pantallas.dart actualizado." -ForegroundColor Green
