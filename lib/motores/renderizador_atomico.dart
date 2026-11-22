@@ -1116,6 +1116,3 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
     );
   }
 }
-'@ | Set-Content -Path "lib\motores\renderizador_atomico.dart" -Encoding UTF8
-
-Write-Host "lib\motores\renderizador_atomico.dart actualizado." -ForegroundColor Green
