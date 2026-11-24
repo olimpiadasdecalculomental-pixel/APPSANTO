@@ -8,11 +8,13 @@ import 'package:toastification/toastification.dart';
 import 'nucleo/puente_supabase.dart';
 import 'nucleo/librerias_maestras_sdui.dart';
 import 'motores/renderizador_atomico.dart';
+import 'stitch_sdui_clonador/validador_y_adaptador_esquema4.dart';
 
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     LibreriasMaestrasSdui.inicializarGlobales();
+    const ValidadorYAdaptadorEsquema4();
 
     try {
       final dir = await getApplicationDocumentsDirectory();

@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart' as uuid_pkg;
 import 'estado_global.dart';
 import 'puente_supabase.dart';
 import '../motores/bus_hardware_universal.dart';
+import '../stitch_sdui_clonador/validador_y_adaptador_esquema4.dart';
 
 class EjecutorFlujosSdui {
   static const uuid_pkg.Uuid _uidGen = uuid_pkg.Uuid();
@@ -312,7 +313,31 @@ class EjecutorFlujosSdui {
         onFeedback?.call('PDF generado: $rutaPdf');
         continue;
       }
-
+if (accion == 'CLONAR_STITCH_A_PANTALLA') {
+        final String rawStitch = paso['stitch_json']?.toString() ?? '';
+        Map<String, dynamic> mapaStitch = {};
+        if (rawStitch.trim().isNotEmpty) {
+          try {
+            final dec = jsonDecode(rawStitch.trim());
+            if (dec is Map) mapaStitch = Map<String, dynamic>.from(dec);
+          } catch (_) {}
+        }
+        final adaptador = const ValidadorYAdaptadorEsquema4();
+        final resClon = await adaptador.clonarYGuardarPantallaStitch(
+          nuevaPantallaId: paso['pantalla_id']?.toString() ?? 'STITCH_PANTALLA',
+          tituloPantalla: paso['titulo']?.toString() ?? 'Pantalla Stitch',
+          stitchJsonExport: mapaStitch,
+          rolRequerido: paso['rol_requerido']?.toString() ?? 'TODOS',
+          orden: int.tryParse(paso['orden']?.toString() ?? '50') ?? 50,
+        );
+        final String msgClon = resClon['mensaje']?.toString() ?? 'Clonación procesada.';
+        estado.escribirRuta('sistema.ultimo_mensaje', msgClon);
+        onFeedback?.call(msgClon);
+        if (resClon['exito'] == true) {
+          await onRecargarPantallas?.call();
+        }
+        continue;
+      }
       if (accion == 'NAVEGAR') {
         HapticFeedback.selectionClick();
         final String destino = paso['pantalla_destino']?.toString() ?? '';
