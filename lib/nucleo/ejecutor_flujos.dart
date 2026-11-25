@@ -15,6 +15,7 @@ import 'estado_global.dart';
 import 'puente_supabase.dart';
 import '../motores/bus_hardware_universal.dart';
 import '../stitch_sdui_clonador/validador_y_adaptador_esquema4.dart';
+import '../esquema4/lego_stitch_kit.dart';
 
 class EjecutorFlujosSdui {
   static const uuid_pkg.Uuid _uidGen = uuid_pkg.Uuid();
@@ -338,6 +339,33 @@ if (accion == 'CLONAR_STITCH_A_PANTALLA') {
         }
         continue;
       }
+
+if (accion == 'VALIDAR_PIN_4') {
+   if (!context.mounted) return;
+   final bool pinOk = await LegoStitchKit.mostrarModalValidarPin4(
+     context: context,
+     titulo: paso['titulo']?.toString() ?? 'Confirmar PIN de 4 Dígitos',
+   );
+   if (!pinOk) {
+     onFeedback?.call('PIN de 4 dígitos incorrecto o cancelado.');
+     return;
+   }
+   continue;
+ }
+ if (accion == 'SELECCIONAR_CAPTURA_PRIVADA') {
+   final String rutaGuardada = await LegoStitchKit.seleccionarCapturaEnBovedaPrivada(
+         campoDestino: paso['campo']?.toString() ?? 'foto_captura',
+         soloCamara: paso['solo_camara'] == true,
+       ) ??
+       '';
+   if (rutaGuardada.isEmpty) {
+     onFeedback?.call('No se seleccionó ninguna captura.');
+     return;
+   }
+   onFeedback?.call('Captura guardada en bóveda privada.');
+   continue;
+ }
+
       if (accion == 'NAVEGAR') {
         HapticFeedback.selectionClick();
         final String destino = paso['pantalla_destino']?.toString() ?? '';

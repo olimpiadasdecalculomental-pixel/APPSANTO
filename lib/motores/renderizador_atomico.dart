@@ -32,6 +32,7 @@ import '../esquema4/esq4_visibilidad_pantallas.dart';
 import '../esquema4/esq4_camara_qr_asistencia.dart';
 import '../esquema4/esq4_video_publicidad.dart';
 import '../esquema4/esq4_almacen_apk_actualizacion.dart';
+import '../esquema4/lego_stitch_kit.dart';
 
 class LienzoUniversalSdui extends StatefulWidget {
   const LienzoUniversalSdui({super.key});
@@ -82,6 +83,13 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
       final String rolReq = (item['rol_requerido']?.toString() ?? 'TODOS').toUpperCase().trim();
 
       bool cumpleRol = (rolReq.isEmpty || rolReq == 'TODOS' || rolUsuario == 'ADMIN' || rolReq == rolUsuario);
+
+      if (!cumpleRol && (rolUsuario == 'USUARIO_INCHA' || rolUsuario == 'USUARIO_INCHA_SUPER') && rolReq == 'USUARIO') {
+   cumpleRol = true;
+ }
+ if (!cumpleRol && rolUsuario == 'USUARIO_INCHA_SUPER' && rolReq == 'USUARIO_INCHA') {
+   cumpleRol = true;
+ }
       bool cumpleVisibilidad = Esq4VariablesAdmin.esPantallaVisible(item['arbol_json'] as Map? ?? {});
 
       return cumpleRol && cumpleVisibilidad;
@@ -316,6 +324,18 @@ class RenderizadorAtomicoSdui {
     if (tipoUpper == 'ESQ4_CAMARA_QR_ASISTENCIA') {
       return Esq4CamaraQrAsistencia(nodoRaw: nodoRaw, onFeedback: onFeedback);
     }
+if (tipoUpper.startsWith('LEGO_')) {
+ return LegoStitchKit.construirPieza(
+   context: context,
+   nodoRaw: nodoRaw,
+   arbolRaiz: arbolCompleto,
+   pantallaId: pantallaIdActual,
+   onNavegar: onNavegar,
+   onRecargar: onRecargar,
+   onFeedback: onFeedback,
+ );
+}
+
     if (tipoUpper == 'ESQ4_VIDEO_PUBLICIDAD') {
       return Esq4VideoPublicidad(nodoRaw: nodoRaw, onFeedback: onFeedback);
     }

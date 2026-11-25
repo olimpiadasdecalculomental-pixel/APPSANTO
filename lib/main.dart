@@ -9,6 +9,7 @@ import 'nucleo/puente_supabase.dart';
 import 'nucleo/librerias_maestras_sdui.dart';
 import 'motores/renderizador_atomico.dart';
 import 'stitch_sdui_clonador/validador_y_adaptador_esquema4.dart';
+import 'esquema4/esq4_almacen_apk_actualizacion.dart';
 
 void main() {
   runZonedGuarded(() async {
@@ -49,6 +50,7 @@ void main() {
 
     // No bloqueamos el arranque de la UI si no hay internet o tarda
     PuenteSupabaseSdui.inicializarPuenteUniversal();
+    Esq4AlmacenActualizacion.limpiarArchivosVencidos();
 
     runApp(const SuperApkUniversalSduiApp());
   }, (error, stack) {
