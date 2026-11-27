@@ -17,6 +17,8 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import '../nucleo/estado_global.dart';
 import '../nucleo/puente_supabase.dart';
+import 'package:share_plus/share_plus.dart';
+import '../esquema4/esq4_rpcs.dart';
 
 class BusHardwareUniversal {
   static const MethodChannel _canalTtsNativo = MethodChannel('com.logicasdui/tts_nativo');
@@ -251,8 +253,33 @@ class BusHardwareUniversal {
         'mensaje': 'GPS: ${puntoA.latitude}, ${puntoA.longitude} ($km km)',
       };
     }
+if (cmd == 'COMPARTIR_ENLACE' || cmd == 'COMPARTIR_APP') {
+      final String textoCompartir = estado.interpolarTexto(
+        argumentos['texto']?.toString() ?? 'Únete al Club SDUI Universal con mi ID: {{sesion.usuario_id}}',
+      );
+      await Share.share(textoCompartir);
+      final String uid = estado.leerRuta('sesion.usuario_id')?.toString() ?? '';
+      if (uid.isNotEmpty && uid != 'USR_ANONIMO') {
+        final Map resShare = await Esq4Rpcs.registrarCapturaOAporte({
+          'tipo': 'COMPARTIR_APP',
+          'plataforma': argumentos['plataforma']?.toString() ?? 'SHARE_NATIVO',
+          'texto': textoCompartir,
+        });
+        return {
+          'exito': resShare['exito'] == true,
+          'comando': cmd,
+          'mensaje': resShare['mensaje']?.toString() ?? 'Enlace compartido y auditado.',
+        };
+      }
+      return {
+        'exito': true,
+        'comando': cmd,
+        'mensaje': 'Enlace compartido correctamente.',
+      };
+    }
 
     await HapticFeedback.heavyImpact();
+  
     final Map reg = {
       'comando': cmd,
       'argumentos': argumentos,

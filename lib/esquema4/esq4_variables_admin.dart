@@ -41,12 +41,17 @@ class Esq4VariablesAdmin {
     return visibilidad != 'NO_VISIBLE';
   }
 
-  static Color obtenerColorPorRol(String rol) {
+  static Color obtenerColorPorRol(String rol, {Color? fallback}) {
     final estado = EstadoGlobalSdui.instancia;
-    final Map colores = (estado.leerRuta('sistema.config_global.colores_por_rol') as Map?) ?? {};
-    final String hex = colores[rol.toUpperCase()]?.toString() ?? '#FFFFFF';
-    return _parsearColor(hex);
-  }
+    final Map coloresUi = (estado.leerRuta('sistema.config_global.ui.colores_por_rol') as Map?) ?? {};
+    final Map coloresRaiz = (estado.leerRuta('sistema.config_global.colores_por_rol') as Map?) ?? {};
+    final String clave = rol.toUpperCase().trim();
+    final String? hex = (coloresUi[clave] ?? coloresRaiz[clave])?.toString();
+    if (hex != null && hex.trim().isNotEmpty) {
+      return _parsearColor(hex);
+    }
+    return fallback ?? Colors.white;
+  } 
 
   static Color _parsearColor(String hex) {
     String limpio = hex.replaceAll('#', '').trim();

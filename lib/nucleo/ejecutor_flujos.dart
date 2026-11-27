@@ -16,6 +16,7 @@ import 'puente_supabase.dart';
 import '../motores/bus_hardware_universal.dart';
 import '../stitch_sdui_clonador/validador_y_adaptador_esquema4.dart';
 import '../esquema4/lego_stitch_kit.dart';
+import 'package:http/http.dart' as http;
 
 class EjecutorFlujosSdui {
   static const uuid_pkg.Uuid _uidGen = uuid_pkg.Uuid();
@@ -152,6 +153,50 @@ class EjecutorFlujosSdui {
         final Map payload = paso['payload'] is Map
             ? Map.from(paso['payload'] as Map)
             : Map.from((estado.leerRuta('form') as Map?) ?? {});
+
+            if (reglaId == 'REG_AUTH_REGISTRO_LOGIN') {
+          final String modoAuth = (estado.leerRuta('sistema.config_global.modo_autenticacion')?.toString() ?? 'PIN_4_DIGITOS').toUpperCase().trim();
+          final String emailAuth = payload['email']?.toString().trim() ?? '';
+          final String passAuth = payload['password_auth']?.toString().trim() ?? '';
+          final String opAuth = (payload['operacion_auth']?.toString() ?? 'LOGIN').toUpperCase().trim();
+
+          if ((modoAuth == 'SUPABASE_AUTH' || modoAuth == 'HIBRIDO') && emailAuth.isNotEmpty && passAuth.isNotEmpty) {
+            try {
+              final String endpoint = opAuth == 'REGISTRO'
+                  ? '${PuenteSupabaseSdui.supabaseUrl}/auth/v1/signup'
+                  : '${PuenteSupabaseSdui.supabaseUrl}/auth/v1/token?grant_type=password';
+              final respAuth = await http.post(
+                Uri.parse(endpoint),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': PuenteSupabaseSdui.supabaseAnonKey,
+                },
+                body: jsonEncode({'email': emailAuth, 'password': passAuth}),
+              ).timeout(const Duration(seconds: 10));
+
+              final dynamic decAuth = respAuth.body.isNotEmpty ? jsonDecode(respAuth.body) : {};
+              if (respAuth.statusCode >= 200 && respAuth.statusCode < 300 && decAuth is Map) {
+                final String uidOficial = (decAuth['user'] is Map ? decAuth['user']['id'] : decAuth['id'])?.toString() ?? '';
+                if (uidOficial.isNotEmpty) {
+                  payload['auth_uid'] = uidOficial;
+                }
+              } else if (modoAuth == 'SUPABASE_AUTH') {
+                final String errAuth = (decAuth is Map ? (decAuth['msg'] ?? decAuth['error_description'] ?? decAuth['message']) : null)?.toString() ??
+                    'Error de autenticación Supabase Auth (${respAuth.statusCode}).';
+                estado.escribirRuta('sistema.ultimo_mensaje', errAuth, notificar: true);
+                onFeedback?.call(errAuth);
+                return;
+              }
+            } catch (e) {
+              if (modoAuth == 'SUPABASE_AUTH') {
+                final String errNet = 'Error conectando a Supabase Auth: $e';
+                estado.escribirRuta('sistema.ultimo_mensaje', errNet, notificar: true);
+                onFeedback?.call(errNet);
+                return;
+              }
+            }
+          }
+        }
 
         final Map resRegla = await PuenteSupabaseSdui.llamarRpcNano(
           'nano_ejecutar_regla',

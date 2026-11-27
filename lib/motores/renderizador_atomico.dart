@@ -1037,6 +1037,7 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
     }
 
     if (modo == 'cursor_top10') {
+
       final String txtSig = widget.nodoRaw['texto_siguiente']?.toString() ?? 'SIGUIENTE CURSOR (LIMIT 10)';
       return Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -1058,18 +1059,67 @@ class _ListaAtomicaUniversalWidgetState extends State<_ListaAtomicaUniversalWidg
             else if (_itemsRemotos.isEmpty)
               Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(widget.nodoRaw['texto_vacio']?.toString() ?? '0 registros encontrados.', style: const TextStyle(color: Colors.white60, fontSize: 11.5)))
             else
-              ..._itemsRemotos.map((rawIt) {
+           ..._itemsRemotos.map((rawIt) {
                 final Map it = rawIt is Map ? rawIt : {};
+                final Map datos = it['datos'] is Map ? Map.from(it['datos'] as Map) : {};
+                final String est = (it['estado']?.toString() ?? 'ACTIVO').toUpperCase();
+                final Color colEst = (est == 'REPROBADO' || est == 'BLOQUEADO')
+                    ? const Color(0xFFFF4D4D)
+                    : (est.contains('PENDIENTE') ? const Color(0xFFF59E0B) : const Color(0xFF00FF66));
+                final String tituloCard = (datos['titulo'] ??
+                        datos['nombre'] ??
+                        datos['nombre_local'] ??
+                        datos['premio'] ??
+                        datos['tipo'] ??
+                        it['clave_registro'] ??
+                        it['propietario_id'] ??
+                        'Registro')
+                    .toString();
+                final List<String> detalles = [];
+                if (datos['ganador'] != null) detalles.add('Ganador: ${datos['ganador']}');
+                if (datos['tx_token'] != null) detalles.add('Folio: ${datos['tx_token']}');
+                if (datos['monto_declarado'] != null) detalles.add('Monto: ${datos['monto_declarado']} Bs');
+                if (datos['rol'] != null) detalles.add('Rol: ${datos['rol']}');
+                if (datos['telefono'] != null) detalles.add('Tel: ${datos['telefono']}');
+                if (datos['departamento'] != null) detalles.add('Sede: ${datos['departamento']}');
+                if (datos['qr_premio'] != null) detalles.add('QR: ${datos['qr_premio']}');
+                if (datos['motivo_rechazo'] != null) detalles.add('Motivo: ${datos['motivo_rechazo']}');
+                final String subCard = detalles.isNotEmpty
+                    ? detalles.join(' · ')
+                    : 'Propietario: ${it['propietario_id'] ?? 'SISTEMA'}';
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFF142033), borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF142033),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: colEst.withValues(alpha: 0.35)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${it['propietario_id'] ?? ''} · [${it['estado'] ?? ''}]', style: const TextStyle(color: Color(0xFFFFD700), fontSize: 11, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text('${it['datos'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 11.5)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              tituloCard,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: colEst.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(4)),
+                            child: Text(est, style: TextStyle(color: colEst, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(subCard, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                       if (botonesFilaGlobal.isNotEmpty) _construirBotonesDeFila(context, it, botonesFilaGlobal),
                     ],
                   ),

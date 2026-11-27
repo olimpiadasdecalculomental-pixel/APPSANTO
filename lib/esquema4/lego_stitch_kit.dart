@@ -13,6 +13,7 @@ import '../motores/widgets_stitch_media.dart';
 import 'esq4_camara_qr_asistencia.dart';
 import 'esq4_video_publicidad.dart';
 import 'esq4_visibilidad_pantallas.dart';
+import 'esq4_variables_admin.dart';
 
 class LegoStitchKit {
   static const Color bgCanvas = Color(0xFF0B1326);
@@ -31,25 +32,35 @@ class LegoStitchKit {
   static const Color onSurface = Color(0xFFDAE2FD);
   static const Color onSurfaceVar = Color(0xFFB9CCB5);
 
-  static Color colorPorRol(String rol) {
+static Color colorPorRol(String rol) {
+    final Color defecto;
     switch (rol.toUpperCase().trim()) {
       case 'USUARIO':
-        return neonCyan;
+        defecto = neonCyan;
+        break;
       case 'USUARIO_INCHA':
-        return const Color(0xFF10B981);
+        defecto = const Color(0xFF10B981);
+        break;
       case 'USUARIO_INCHA_SUPER':
-        return const Color(0xFFF59E0B);
+        defecto = const Color(0xFFF59E0B);
+        break;
       case 'EMPRESA':
-        return neonYellow;
+      case 'EMPRESARIO':
+        defecto = neonYellow;
+        break;
       case 'VERIFICADOR':
-        return neonPurple;
+        defecto = neonPurple;
+        break;
       case 'PUBLICIDAD':
-        return neonPink;
+        defecto = neonPink;
+        break;
       case 'ADMIN':
-        return neonRed;
+        defecto = neonRed;
+        break;
       default:
-        return const Color(0xFF38BDF8);
+        defecto = const Color(0xFF38BDF8);
     }
+    return Esq4VariablesAdmin.obtenerColorPorRol(rol, fallback: defecto);
   }
 
   static Future<bool> mostrarModalValidarPin4({
@@ -561,7 +572,10 @@ class LegoStitchKit {
                           {'accion': 'GUARDAR_ESTADO', 'ruta': 'form.operacion_auth', 'valor': 'REGISTRO'},
                           {'accion': 'EJECUTAR_REGLA_SQL', 'regla_id': 'REG_AUTH_REGISTRO_LOGIN', 'recargar_pantallas': true}
                         ]),
-                        child: Text('CREAR CUENTA (+100 PTS)', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w700)),
+                        child: Text(
+                          estado.interpolarTexto('CREAR CUENTA (+{{sistema.config_global.puntos_bienvenida}} PTS)'),
+                          style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ),
