@@ -468,12 +468,12 @@ class _DisparadorP2pRapido03State extends State<_DisparadorP2pRapido03> {
             style: ElevatedButton.styleFrom(backgroundColor: LegoOrbePosQr03.cyanNeon, foregroundColor: Colors.black),
             icon: const Icon(Icons.bolt, size: 19),
             label: Text('TRANSFERIR ${_monto.toStringAsFixed(2)} MTO A $_receptor', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w700)),
-            onPressed: () => EjecutorFlujosSdui.ejecutarCadena(
+          onPressed: () => EjecutorFlujosSdui.ejecutarCadena(
               context: context,
               flujoAcciones: (widget.nodoRaw['flujo_enviar'] as List?) ?? [],
-              onNavegar: onNavegar,
-              onRecargarPantallas: onRecargar,
-              onFeedback: onFeedback,
+              onNavegar: widget.onNavegar,
+              onRecargarPantallas: widget.onRecargar,
+              onFeedback: widget.onFeedback,
             ),
           ),
         ],
@@ -711,12 +711,12 @@ class _MesaOpticaRecargas03State extends State<_MesaOpticaRecargas03> {
             style: ElevatedButton.styleFrom(backgroundColor: LegoOrbePosQr03.greenNeon, foregroundColor: Colors.black),
             icon: const Icon(Icons.verified, size: 18),
             label: Text('VALIDAR Y APROBAR SALDO ($mtoCalc MTO)', style: GoogleFonts.jetBrainsMono(fontSize: 10.5, fontWeight: FontWeight.w700)),
-            onPressed: () => EjecutorFlujosSdui.ejecutarCadena(
+           onPressed: () => EjecutorFlujosSdui.ejecutarCadena(
               context: context,
               flujoAcciones: (widget.nodoRaw['flujo_aprobar'] as List?) ?? [],
-              onNavegar: onNavegar,
-              onRecargarPantallas: onRecargar,
-              onFeedback: onFeedback,
+              onNavegar: widget.onNavegar,
+              onRecargarPantallas: widget.onRecargar,
+              onFeedback: widget.onFeedback,
             ),
           ),
         ],
