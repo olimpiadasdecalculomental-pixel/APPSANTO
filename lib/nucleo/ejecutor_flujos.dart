@@ -187,6 +187,12 @@ class EjecutorFlujosSdui {
             estado.escribirRuta('sesion.token_salida', resRegla['token_salida'].toString(), notificar: false);
             estado.escribirRuta('sesion.rol', 'TODOS', notificar: false);
           }
+          if (resRegla['pin_4_digitos'] != null) {
+            estado.escribirRuta('sesion.pin_4_digitos', resRegla['pin_4_digitos'].toString(), notificar: false);
+          }
+          if (resRegla['saldos_actualizados'] is Map) {
+            estado.escribirRuta('sesion.saldos', Map.from(resRegla['saldos_actualizados'] as Map), notificar: false);
+          }
         }
 
         final String msgRegla =
@@ -240,6 +246,12 @@ class EjecutorFlujosSdui {
 
         if (resRpc['exito'] == false && paso['detener_si_error'] != false) {
           return;
+        }
+        if (resRpc['saldos_actualizados'] is Map) {
+          estado.escribirRuta('sesion.saldos', Map.from(resRpc['saldos_actualizados'] as Map), notificar: false);
+        }
+        if (paso['recargar_pantallas'] == true) {
+          await onRecargarPantallas?.call();
         }
         continue;
       }

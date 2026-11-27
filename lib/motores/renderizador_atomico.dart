@@ -33,6 +33,9 @@ import '../esquema4/esq4_camara_qr_asistencia.dart';
 import '../esquema4/esq4_video_publicidad.dart';
 import '../esquema4/esq4_almacen_apk_actualizacion.dart';
 import '../esquema4/lego_stitch_kit.dart';
+import '../esquema4/02_lego_orbe_bovedas_ledger.dart';
+import '../esquema4/03_lego_orbe_pos_qr_comercio.dart';
+import '../esquema4/04_lego_orbe_mundo3_vr.dart';
 
 class LienzoUniversalSdui extends StatefulWidget {
   const LienzoUniversalSdui({super.key});
@@ -83,6 +86,9 @@ class _LienzoUniversalSduiState extends State<LienzoUniversalSdui> {
       final String rolReq = (item['rol_requerido']?.toString() ?? 'TODOS').toUpperCase().trim();
 
       bool cumpleRol = (rolReq.isEmpty || rolReq == 'TODOS' || rolUsuario == 'ADMIN' || rolReq == rolUsuario);
+      if (!cumpleRol && rolUsuario == 'JEFE_SUPREMO') {
+        cumpleRol = true;
+      }
 
       if (!cumpleRol && (rolUsuario == 'USUARIO_INCHA' || rolUsuario == 'USUARIO_INCHA_SUPER') && rolReq == 'USUARIO') {
    cumpleRol = true;
@@ -319,6 +325,51 @@ class RenderizadorAtomicoSdui {
     }
     if (tipoUpper == 'SDUI_CUBO_3D') {
       return SduiCubo3dAtomico(nodoRaw: nodoRaw);
+    }
+
+    if (tipoUpper == 'LEGO_ORBE_HEADER_MTO' ||
+        tipoUpper == 'LEGO_BOVEDA_MTO_CARD' ||
+        tipoUpper == 'LEGO_LISTA_MOVIMIENTOS_FILTRABLE' ||
+        tipoUpper == 'LEGO_PARTIDA_DOBLE_LEDGER' ||
+        tipoUpper == 'LEGO_GRAFICO_SPARKLINE_RESERVA') {
+      return LegoOrbeBovedas02.construirPieza(
+        context: context,
+        nodoRaw: nodoRaw,
+        onNavegar: onNavegar,
+        onRecargar: onRecargar,
+        onFeedback: onFeedback,
+      );
+    }
+    if (tipoUpper == 'LEGO_CEDULA_QR_AMPLIADA' ||
+        tipoUpper == 'LEGO_ESCANER_POS_HUD' ||
+        tipoUpper == 'LEGO_TICKET_COMPROBANTE' ||
+        tipoUpper == 'LEGO_ESCROW_FLUJO' ||
+        tipoUpper == 'LEGO_DISPARADOR_P2P_RAPIDO' ||
+        tipoUpper == 'LEGO_VITRINA_B2B_CATALOGO' ||
+        tipoUpper == 'LEGO_DESPACHO_LOTE_FISICO' ||
+        tipoUpper == 'LEGO_MESA_OPTICA_RECARGAS') {
+      return LegoOrbePosQr03.construirPieza(
+        context: context,
+        nodoRaw: nodoRaw,
+        onNavegar: onNavegar,
+        onRecargar: onRecargar,
+        onFeedback: onFeedback,
+      );
+    }
+    if (tipoUpper == 'LEGO_MATRIZ_8_NODOS' ||
+        tipoUpper == 'LEGO_CINETV_VIP' ||
+        tipoUpper == 'LEGO_KAHOOT_COMBATE' ||
+        tipoUpper == 'LEGO_FORJADOR_KAHOOT_DOCENTE' ||
+        tipoUpper == 'LEGO_VISOR_AR_VR_360' ||
+        tipoUpper == 'LEGO_REGLAS_TASAS_CARD' ||
+        tipoUpper == 'LEGO_CIRCULAR_EDU_CARD') {
+      return LegoOrbeMundo3Vr04.construirPieza(
+        context: context,
+        nodoRaw: nodoRaw,
+        onNavegar: onNavegar,
+        onRecargar: onRecargar,
+        onFeedback: onFeedback,
+      );
     }
 
     if (tipoUpper == 'ESQ4_CAMARA_QR_ASISTENCIA') {
